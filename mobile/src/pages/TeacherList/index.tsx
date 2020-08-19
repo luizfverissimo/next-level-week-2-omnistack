@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView } from 'react-native';
 import { BorderlessButton, RectButton } from 'react-native-gesture-handler';
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-community/async-storage';
 
 import api from '../../services/api';
 
@@ -10,9 +11,9 @@ import TeacherItem, { Teacher } from '../../components/TeacherItem';
 
 import styles from './styles';
 
-
 const TeacherList = () => {
-  const [teachers, setTeachers] = useState([])
+  const [teachers, setTeachers] = useState([]);
+  const [favorites, setFavorites] = useState<number[]>([]);
 
   const [isFiltersVisible, setIsFiltersVisible] = useState(false);
 
@@ -20,22 +21,35 @@ const TeacherList = () => {
   const [week_day, setWeek_day] = useState('');
   const [time, setTime] = useState('');
 
+  const loadFavorites = () => {
+    AsyncStorage.getItem('favorites').then((response) => {
+      if (response) {
+        const favoritedTeachers = JSON.parse(response);
+        const favoritedTeachersIds = favoritedTeachers.map((teacher: Teacher) => teacher.id);
+
+        setFavorites(favoritedTeachersIds);
+      }
+    });
+  }
+
   const handleToggleFiltersVisible = () => {
     setIsFiltersVisible(!isFiltersVisible);
   };
 
   const handleFiltersSubmit = async () => {
+    loadFavorites()
+
     const response = await api.get('/classes', {
       params: {
         subject,
         week_day,
-        time
-      }
-    })
+        time,
+      },
+    });
 
-    setIsFiltersVisible(false)
-    setTeachers(response.data)
-  }
+    setIsFiltersVisible(false);
+    setTeachers(response.data);
+  };
 
   return (
     <View style={styles.container}>
@@ -81,7 +95,10 @@ const TeacherList = () => {
               </View>
             </View>
 
-            <RectButton style={styles.submitButton} onPress={handleFiltersSubmit}>
+            <RectButton
+              style={styles.submitButton}
+              onPress={handleFiltersSubmit}
+            >
               <Text style={styles.submitButtonText}>Filtrar</Text>
             </RectButton>
           </View>
@@ -94,7 +111,9 @@ const TeacherList = () => {
           paddingBottom: 16,
         }}
       >
-        {teachers.map((teacher: Teacher) => <TeacherItem key={teacher.id} teacher={teacher} />)}
+        {teachers.map((teacher: Teacher) => (
+          <TeacherItem key={teacher.id} teacher={teacher} favorited={favorites.includes(teacher.id)} />
+        ))}
       </ScrollView>
     </View>
   );
